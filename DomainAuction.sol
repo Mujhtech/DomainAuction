@@ -18,16 +18,11 @@ contract DomainAuctions is ERC721, ERC721URIStorage, Ownable {
     uint256 totalAuctions;
 
     string public tld; // top level domain
-    string svgPartOne =
-        '<svg xmlns="http://www.w3.org/2000/svg" width="270" height="270" fill="none"><path fill="url(#B)" d="M0 0h270v270H0z"/><defs><filter id="A" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse" height="270" width="270"><feDropShadow dx="0" dy="1" stdDeviation="2" flood-opacity=".225" width="200%" height="200%"/></filter></defs><path d="M72.863 42.949c-.668-.387-1.426-.59-2.197-.59s-1.529.204-2.197.59l-10.081 6.032-6.85 3.934-10.081 6.032c-.668.387-1.426.59-2.197.59s-1.529-.204-2.197-.59l-8.013-4.721a4.52 4.52 0 0 1-1.589-1.616c-.384-.665-.594-1.418-.608-2.187v-9.31c-.013-.775.185-1.538.572-2.208a4.25 4.25 0 0 1 1.625-1.595l7.884-4.59c.668-.387 1.426-.59 2.197-.59s1.529.204 2.197.59l7.884 4.59a4.52 4.52 0 0 1 1.589 1.616c.384.665.594 1.418.608 2.187v6.032l6.85-4.065v-6.032c.013-.775-.185-1.538-.572-2.208a4.25 4.25 0 0 0-1.625-1.595L41.456 24.59c-.668-.387-1.426-.59-2.197-.59s-1.529.204-2.197.59l-14.864 8.655a4.25 4.25 0 0 0-1.625 1.595c-.387.67-.585 1.434-.572 2.208v17.441c-.013.775.185 1.538.572 2.208a4.25 4.25 0 0 0 1.625 1.595l14.864 8.655c.668.387 1.426.59 2.197.59s1.529-.204 2.197-.59l10.081-5.901 6.85-4.065 10.081-5.901c.668-.387 1.426-.59 2.197-.59s1.529.204 2.197.59l7.884 4.59a4.52 4.52 0 0 1 1.589 1.616c.384.665.594 1.418.608 2.187v9.311c.013.775-.185 1.538-.572 2.208a4.25 4.25 0 0 1-1.625 1.595l-7.884 4.721c-.668.387-1.426.59-2.197.59s-1.529-.204-2.197-.59l-7.884-4.59a4.52 4.52 0 0 1-1.589-1.616c-.385-.665-.594-1.418-.608-2.187v-6.032l-6.85 4.065v6.032c-.013.775.185 1.538.572 2.208a4.25 4.25 0 0 0 1.625 1.595l14.864 8.655c.668.387 1.426.59 2.197.59s1.529-.204 2.197-.59l14.864-8.655c.657-.394 1.204-.95 1.589-1.616s.594-1.418.609-2.187V55.538c.013-.775-.185-1.538-.572-2.208a4.25 4.25 0 0 0-1.625-1.595l-14.993-8.786z" fill="#fff"/><defs><linearGradient id="B" x1="0" y1="0" x2="270" y2="270" gradientUnits="userSpaceOnUse"><stop stop-color="#cb5eee"/><stop offset="1" stop-color="#0cd7e4" stop-opacity=".99"/></linearGradient></defs><text x="32.5" y="231" font-size="27" fill="#fff" filter="url(#A)" font-family="Plus Jakarta Sans,DejaVu Sans,Noto Color Emoji,Apple Color Emoji,sans-serif" font-weight="bold">';
-    string svgPartTwo = "</text></svg>";
 
     mapping(string => address) public domains;
     mapping(string => string) public records;
 
     mapping(uint256 => string) public names;
-
-    error InvalidName(string name);
 
     event Start(uint256 indexed tokenId, address owner, uint256 startAmount);
     event End(uint256 indexed tokenId, address bidder, uint256 price);
@@ -62,19 +57,19 @@ contract DomainAuctions is ERC721, ERC721URIStorage, Ownable {
         totalAuctions = 0;
     }
 
-     /**
+    /**
      * @dev Returns the length of a given string
      *
      * @param s The string to measure the length of
      * @return The length of the input string
      */
-    function strlen(string memory s) internal pure returns (uint) {
-        uint len;
-        uint i = 0;
-        uint bytelength = bytes(s).length;
-        for(len = 0; i < bytelength; len++) {
+    function strlen(string memory s) internal pure returns (uint256) {
+        uint256 len;
+        uint256 i = 0;
+        uint256 bytelength = bytes(s).length;
+        for (len = 0; i < bytelength; len++) {
             bytes1 b = bytes(s)[i];
-            if(b < 0x80) {
+            if (b < 0x80) {
                 i += 1;
             } else if (b < 0xE0) {
                 i += 2;
@@ -92,40 +87,22 @@ contract DomainAuctions is ERC721, ERC721URIStorage, Ownable {
     }
 
     // This function is to register new nft domain and create auction
-    function register(string calldata name, uint256 currentBid) public payable {
-        if (!valid(name)) revert InvalidName(name);
+    function register(string calldata name, string memory _tokenURI, uint256 currentBid)
+        public
+        payable
+        valid(name)
+    {
         require(domains[name] == address(0));
 
         uint256 _price = price(name);
         require(msg.value == _price, "Insufficient balance");
 
-        string memory _name = string(abi.encodePacked(name, ".", tld));
-        string memory finalSvg = string(
-            abi.encodePacked(svgPartOne, _name, svgPartTwo)
-        );
         uint256 newRecordId = _tokenIds.current();
         _tokenIds.increment();
-        uint256 length = strlen(name); // length of name is returned
-        string memory strLen = Strings.toString(length);
 
-        string memory json = Base64.encode(
-            abi.encodePacked(
-                '{"name": "',
-                _name,
-                '", "description": "A domain on the Domain Auction", "image": "data:image/svg+xml;base64,',
-                Base64.encode(bytes(finalSvg)),
-                '","length":"',
-                strLen,
-                '"}'
-            )
-        );
-
-        string memory finalTokenUri = string(
-            abi.encodePacked("data:application/json;base64,", json)
-        );
 
         _safeMint(msg.sender, newRecordId);
-        _setTokenURI(newRecordId, finalTokenUri);
+        _setTokenURI(newRecordId, _tokenURI);
         domains[name] = msg.sender;
 
         names[newRecordId] = name;
@@ -141,10 +118,14 @@ contract DomainAuctions is ERC721, ERC721URIStorage, Ownable {
     }
 
     // This function will give us the price of a domain based on length
-    function price(string calldata name) public pure returns (uint256) {
+    function price(string calldata name)
+        public
+        pure
+        valid(name)
+        returns (uint256)
+    {
         uint256 len = strlen(name);
         require(len > 0, "Empty string");
-        if (!valid(name)) revert InvalidName(name);
         if (len == 3) {
             return 5 * 10**17;
         } else if (len == 4) {
@@ -154,33 +135,6 @@ contract DomainAuctions is ERC721, ERC721URIStorage, Ownable {
         }
     }
 
-    // This function is to get address of nft domain
-    function getAddress(string calldata name) public view returns (address) {
-        // Check that the owner is the transaction sender
-        return domains[name];
-    }
-
-    // This function is to set record for nft domain
-    function setRecord(string calldata name, string calldata record) public {
-        require(domains[name] == msg.sender, "only admins of domain can set the record");
-        records[name] = record;
-    }
-
-    // This function is to get record of nft domain
-    function getRecord(string calldata name)
-        public
-        view
-        returns (string memory)
-    {
-        return records[name];
-    }
-
-    // This function is for owner to withdraw
-    function withdraw() public onlyOwner {
-        uint256 amount = address(this).balance;
-        (bool success, ) = msg.sender.call{value: amount}("");
-        require(success, "Owner failed to withdraw balance");
-    }
 
     // This function is to get all domain name
     function getAllNames() public view returns (string[] memory) {
@@ -189,10 +143,6 @@ contract DomainAuctions is ERC721, ERC721URIStorage, Ownable {
             allNames[i] = names[i];
         }
         return allNames;
-    }
-
-    function valid(string calldata name) public pure returns (bool) {
-        return strlen(name) >= 3 && strlen(name) <= 10; // compares the length of name to 3 and 10
     }
 
     function start(
@@ -207,7 +157,7 @@ contract DomainAuctions is ERC721, ERC721URIStorage, Ownable {
         auction.price = _price;
         auction.sellingPrice = _sellingPrice;
 
-        auctionEnd[totalAuctions] = block.timestamp + 240;// change back
+        auctionEnd[totalAuctions] = block.timestamp + 240; // change back
         allAuctions[totalAuctions] = tokenId;
 
         totalAuctions++;
@@ -236,7 +186,7 @@ contract DomainAuctions is ERC721, ERC721URIStorage, Ownable {
         emit Bid(tokenId, auction.bidder, bidValue);
     }
 
-    function resetHelper(uint tokenId) internal {
+    function resetHelper(uint256 tokenId) internal {
         DomainAuction storage auction = auctions[tokenId];
         auction.bid = 0;
         auction.bidder = msg.sender;
@@ -265,7 +215,7 @@ contract DomainAuctions is ERC721, ERC721URIStorage, Ownable {
     }
 
     // This function will withdraw a bid from the marketplace
-    function withdrawBid(uint256 tokenId)
+    function withdraw(uint256 tokenId)
         external
         payable
         isBidder(tokenId)
@@ -291,6 +241,10 @@ contract DomainAuctions is ERC721, ERC721URIStorage, Ownable {
         emit Cancel(tokenId, auction.owner);
     }
 
+    modifier valid(string calldata name) {
+        require(strlen(name) >= 3 && strlen(name) <= 10, "Invalid string name");
+        _;
+    }
 
     modifier isSeller(uint256 tokenId) {
         require(
@@ -351,7 +305,10 @@ contract DomainAuctions is ERC721, ERC721URIStorage, Ownable {
 
     // The following functions are overrides required by Solidity.
 
-    function _burn(uint256 tokenId) internal override(ERC721, ERC721URIStorage) {
+    function _burn(uint256 tokenId)
+        internal
+        override(ERC721, ERC721URIStorage)
+    {
         super._burn(tokenId);
     }
 
